@@ -1,3 +1,5 @@
+import { GoogleTrendsEndpoints, GoogleTrendsTrendingHours } from './enums';
+
 export type GoogleTrendsMapper = {
   path: string;
   method: string;
@@ -6,16 +8,11 @@ export type GoogleTrendsMapper = {
   headers: Record<string, string>;
 };
 
-export const enum GoogleTrendsEndpoints {
-  dailyTrends = 'dailyTrends',
-  autocomplete = 'autocomplete',
-  explore = 'explore',
-  interestByRegion = 'interestByRegion',
-}
+export { GoogleTrendsEndpoints, GoogleTrendsTrendingHours };
 
 // TRENDING TOPICS
 
-export const enum GoogleTrendsTrendingHours {
+export enum GoogleTrendsTrendingHours {
   fourHrs = 4,
   oneDay = 24,
   twoDays = 48,

@@ -1,4 +1,5 @@
-import { GoogleTrendsEndpoints, GoogleTrendsMapper } from './types';
+import { GoogleTrendsEndpoints } from './types/enums';
+import { GoogleTrendsMapper } from './types';
 
 const GOOGLE_TRENDS_BASE_URL = 'trends.google.com';
 

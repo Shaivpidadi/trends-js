@@ -1,6 +1,6 @@
 import GoogleTrendsApi from '../index';
 import { RateLimitError, InvalidRequestError, NetworkError, ParseError } from '../errors/GoogleTrendsError';
-import { GoogleTrendsTrendingHours } from '../types';
+import { GoogleTrendsTrendingHours } from '../types/enums';
 
 describe('GoogleTrendsApi', () => {
   describe('dailyTrends', () => {

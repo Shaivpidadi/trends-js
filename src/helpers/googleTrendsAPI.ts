@@ -1,7 +1,6 @@
 import {
   DailyTrendingTopics,
   DailyTrendingTopicsOptions,
-  GoogleTrendsEndpoints,
   RealTimeTrendsOptions,
   ExploreOptions,
   ExploreResponse,
@@ -9,6 +8,7 @@ import {
   InterestByRegionResponse,
   GoogleTrendsResponse,
 } from '../types/index';
+import { GoogleTrendsEndpoints } from '../types/enums';
 import { request } from './request';
 import { extractJsonFromResponse } from './format';
 import { GOOGLE_TRENDS_MAPPER } from '../constants';
