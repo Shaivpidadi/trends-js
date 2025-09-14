@@ -66,7 +66,7 @@ export const request = async (
       res.on('end', async () => {
         if (res.statusCode === 429 && res.headers['set-cookie']) {
           cookieVal = res.headers['set-cookie'][0].split(';')[0];
-          requestOptions.headers!['cookie'] = cookieVal;
+          (requestOptions.headers as Record<string, string>)['cookie'] = cookieVal;
           try {
             const retryResponse = await rereq(requestOptions, bodyString);
             resolve(retryResponse);
