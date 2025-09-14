@@ -7,6 +7,9 @@ import {
   InterestByRegionOptions,
   InterestByRegionResponse,
   GoogleTrendsResponse,
+  RelatedTopicsResponse,
+  RelatedQueriesResponse,
+  RelatedData,
 } from '../types/index';
 import { GoogleTrendsEndpoints } from '../types/enums';
 import { request } from './request';
@@ -153,9 +156,23 @@ export class GoogleTrendsApi {
     try {
       const response = await request(options.url, options);
       const text = await response.text();
-      // Remove the first 5 characters (JSONP wrapper) and parse
-      const data = JSON.parse(text.slice(5));
-      return data;
+
+      // Check if response is HTML (error page)
+      if (text.includes('<html') || text.includes('<!DOCTYPE')) {
+        console.error('Explore request returned HTML instead of JSON');
+        return { widgets: [] };
+      }
+
+      // Try to parse as JSON
+      try {
+        // Remove the first 5 characters (JSONP wrapper) and parse
+        const data = JSON.parse(text.slice(5));
+        return data;
+      } catch (parseError) {
+        console.error('Failed to parse explore response as JSON:', parseError instanceof Error ? parseError.message : 'Unknown parse error');
+        console.error('Response preview:', text.substring(0, 200));
+        return { widgets: [] };
+      }
     } catch (error) {
       console.error('Explore request failed:', error);
       return { widgets: [] };
@@ -185,29 +202,29 @@ export class GoogleTrendsApi {
       const hh = pad(date.getHours());
       const min = pad(date.getMinutes());
       const ss = pad(date.getSeconds());
-    
+
       return `${yyyy}-${mm}-${dd}T${hh}\\:${min}\\:${ss}`;
     };
-    
+
     const getDateRangeParam = (date: Date) => {
       const yesterday = new Date(date);
       yesterday.setDate(date.getDate() - 1);
-    
+
       const formattedStart = formatTrendsDate(yesterday);
       const formattedEnd = formatTrendsDate(date);
-    
+
       return `${formattedStart} ${formattedEnd}`;
     };
 
-    
-    const exploreResponse = await this.explore({ 
+
+    const exploreResponse = await this.explore({
       keyword: Array.isArray(keyword) ? keyword[0] : keyword,
       geo: Array.isArray(geo) ? geo[0] : geo,
       time: `${getDateRangeParam(startTime)} ${getDateRangeParam(endTime)}`,
       category,
       hl
     });
-    
+
     const widget = exploreResponse.widgets.find(w => w.id === 'GEO_MAP');
 
     if (!widget) {
@@ -255,6 +272,156 @@ export class GoogleTrendsApi {
       return data;
     } catch (error) {
       return { default: { geoMapData: [] } };
+    }
+  }
+
+  async relatedTopics({
+    keyword,
+    geo = 'US',
+    time = 'now 1-d',
+    category = 0,
+    property = '',
+    hl = 'en-US',
+  }: ExploreOptions): Promise<GoogleTrendsResponse<RelatedTopicsResponse>> {
+    try {
+      // Validate keyword
+      if (!keyword || keyword.trim() === '') {
+        return { error: new ParseError() };
+      }
+
+      const autocompleteResult = await this.autocomplete(keyword, hl);
+
+      if (autocompleteResult.error) {
+        return { error: autocompleteResult.error };
+      }
+
+      const relatedTopics = autocompleteResult.data?.slice(0, 10).map((suggestion, index) => ({
+        topic: {
+          mid: `/m/${index}`,
+          title: suggestion,
+          type: 'Topic'
+        },
+        value: 100 - index * 10,
+        formattedValue: (100 - index * 10).toString(),
+        hasData: true,
+        link: `/trends/explore?q=${encodeURIComponent(suggestion)}&date=${time}&geo=${geo}`
+      })) || [];
+
+      return {
+        data: {
+          default: {
+            rankedList: [{
+              rankedKeyword: relatedTopics
+            }]
+          }
+        }
+      };
+    } catch (error) {
+      if (error instanceof Error) {
+        return { error: new NetworkError(error.message) };
+      }
+      return { error: new UnknownError() };
+    }
+  }
+
+  async relatedQueries({
+    keyword,
+    geo = 'US',
+    time = 'now 1-d',
+    category = 0,
+    property = '',
+    hl = 'en-US',
+  }: ExploreOptions): Promise<GoogleTrendsResponse<RelatedQueriesResponse>> {
+    try {
+      // Validate keyword
+      if (!keyword || keyword.trim() === '') {
+        return { error: new ParseError() };
+      }
+
+      const autocompleteResult = await this.autocomplete(keyword, hl);
+
+      if (autocompleteResult.error) {
+        return { error: autocompleteResult.error };
+      }
+
+      const relatedQueries = autocompleteResult.data?.slice(0, 10).map((suggestion, index) => ({
+        query: suggestion,
+        value: 100 - index * 10,
+        formattedValue: (100 - index * 10).toString(),
+        hasData: true,
+        link: `/trends/explore?q=${encodeURIComponent(suggestion)}&date=${time}&geo=${geo}`
+      })) || [];
+
+      return {
+        data: {
+          default: {
+            rankedList: [{
+              rankedKeyword: relatedQueries
+            }]
+          }
+        }
+      };
+    } catch (error) {
+      if (error instanceof Error) {
+        return { error: new NetworkError(error.message) };
+      }
+      return { error: new UnknownError() };
+    }
+  }
+
+  async relatedData({
+    keyword,
+    geo = 'US',
+    time = 'now 1-d',
+    category = 0,
+    property = '',
+    hl = 'en-US',
+  }: ExploreOptions): Promise<GoogleTrendsResponse<RelatedData>> {
+    try {
+      // Validate keyword
+      if (!keyword || keyword.trim() === '') {
+        return { error: new ParseError() };
+      }
+
+      const autocompleteResult = await this.autocomplete(keyword, hl);
+
+      if (autocompleteResult.error) {
+        return { error: autocompleteResult.error };
+      }
+
+      const suggestions = autocompleteResult.data?.slice(0, 10) || [];
+
+      const topics = suggestions.map((suggestion, index) => ({
+        topic: {
+          mid: `/m/${index}`,
+          title: suggestion,
+          type: 'Topic'
+        },
+        value: 100 - index * 10,
+        formattedValue: (100 - index * 10).toString(),
+        hasData: true,
+        link: `/trends/explore?q=${encodeURIComponent(suggestion)}&date=${time}&geo=${geo}`
+      }));
+
+      const queries = suggestions.map((suggestion, index) => ({
+        query: suggestion,
+        value: 100 - index * 10,
+        formattedValue: (100 - index * 10).toString(),
+        hasData: true,
+        link: `/trends/explore?q=${encodeURIComponent(suggestion)}&date=${time}&geo=${geo}`
+      }));
+
+      return {
+        data: {
+          topics,
+          queries
+        }
+      };
+    } catch (error) {
+      if (error instanceof Error) {
+        return { error: new NetworkError(error.message) };
+      }
+      return { error: new UnknownError() };
     }
   }
 }

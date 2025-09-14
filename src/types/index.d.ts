@@ -93,6 +93,50 @@ export type ExploreResponse = {
   }>;
 };
 
+// Related Topics
+export interface RelatedTopic {
+  topic: {
+    mid: string;
+    title: string;
+    type: string;
+  };
+  value: number;
+  formattedValue: string;
+  hasData: boolean;
+  link: string;
+}
+
+export interface RelatedTopicsResponse {
+  default: {
+    rankedList: Array<{
+      rankedKeyword: RelatedTopic[];
+    }>;
+  };
+}
+
+// Related Queries
+export interface RelatedQuery {
+  query: string;
+  value: number;
+  formattedValue: string;
+  hasData: boolean;
+  link: string;
+}
+
+export interface RelatedQueriesResponse {
+  default: {
+    rankedList: Array<{
+      rankedKeyword: RelatedQuery[];
+    }>;
+  };
+}
+
+// Combined Related Data
+export interface RelatedData {
+  topics: RelatedTopic[];
+  queries: RelatedQuery[];
+}
+
 export interface InterestByRegionOptions {
   keyword: string | string[];
   startTime?: Date;

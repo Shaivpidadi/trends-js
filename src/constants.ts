@@ -36,4 +36,18 @@ export const GOOGLE_TRENDS_MAPPER: Record<GoogleTrendsEndpoints, GoogleTrendsMap
     url: `https://${GOOGLE_TRENDS_BASE_URL}/trends/api/widgetdata/comparedgeo`,
     headers: {},
   },
+  [GoogleTrendsEndpoints.relatedTopics]: {
+    path: '/trends/api/widgetdata/relatedtopics',
+    method: 'GET',
+    host: GOOGLE_TRENDS_BASE_URL,
+    url: `https://${GOOGLE_TRENDS_BASE_URL}/trends/api/widgetdata/relatedtopics`,
+    headers: {},
+  },
+  [GoogleTrendsEndpoints.relatedQueries]: {
+    path: '/trends/api/widgetdata/relatedqueries',
+    method: 'GET',
+    host: GOOGLE_TRENDS_BASE_URL,
+    url: `https://${GOOGLE_TRENDS_BASE_URL}/trends/api/widgetdata/relatedqueries`,
+    headers: {},
+  },
 };

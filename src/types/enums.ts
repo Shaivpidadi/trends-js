@@ -3,6 +3,8 @@ export enum GoogleTrendsEndpoints {
   autocomplete = 'autocomplete',
   explore = 'explore',
   interestByRegion = 'interestByRegion',
+  relatedTopics = 'relatedTopics',
+  relatedQueries = 'relatedQueries',
 }
 
 export enum GoogleTrendsTrendingHours {
