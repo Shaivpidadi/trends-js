@@ -1,7 +1,3 @@
-🚧 WIP: Temporary workaround for [#175](https://github.com/pat310/google-trends-api/issues/175)
-
-# @shaivpidadi/trends-js
-
 A TypeScript library for interacting with the Google Trends API. This package provides a simple and type-safe way to access Google Trends data programmatically.
 
 ## Installation
