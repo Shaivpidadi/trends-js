@@ -160,6 +160,7 @@ export class GoogleTrendsApi {
       // Check if response is HTML (error page)
       if (text.includes('<html') || text.includes('<!DOCTYPE')) {
         console.error('Explore request returned HTML instead of JSON');
+        console.error('Response preview:', text.substring(0, 500));
         return { widgets: [] };
       }
 
@@ -167,7 +168,14 @@ export class GoogleTrendsApi {
       try {
         // Remove the first 5 characters (JSONP wrapper) and parse
         const data = JSON.parse(text.slice(5));
-        return data;
+        
+        // Extract widgets from the response
+        if (data && Array.isArray(data) && data.length > 0) {
+          const widgets = data[0] || [];
+          return { widgets };
+        }
+        
+        return { widgets: [] };
       } catch (parseError) {
         console.error('Failed to parse explore response as JSON:', parseError instanceof Error ? parseError.message : 'Unknown parse error');
         console.error('Response preview:', text.substring(0, 200));
@@ -289,33 +297,91 @@ export class GoogleTrendsApi {
         return { error: new ParseError() };
       }
 
-      const autocompleteResult = await this.autocomplete(keyword, hl);
+      // Step 1: Call explore to get widget data and token
+      const exploreResponse = await this.explore({
+        keyword,
+        geo,
+        time,
+        category,
+        property,
+        hl
+      });
 
-      if (autocompleteResult.error) {
-        return { error: autocompleteResult.error };
+      if (!exploreResponse.widgets || exploreResponse.widgets.length === 0) {
+        console.error('Explore response had no widgets. This might be due to:');
+        console.error('1. Google blocking the request (rate limiting)');
+        console.error('2. Invalid parameters');
+        console.error('3. Network issues');
+        return { error: new ParseError('No widgets found in explore response - Google may be blocking requests') };
       }
 
-      const relatedTopics = autocompleteResult.data?.slice(0, 10).map((suggestion, index) => ({
-        topic: {
-          mid: `/m/${index}`,
-          title: suggestion,
-          type: 'Topic'
-        },
-        value: 100 - index * 10,
-        formattedValue: (100 - index * 10).toString(),
-        hasData: true,
-        link: `/trends/explore?q=${encodeURIComponent(suggestion)}&date=${time}&geo=${geo}`
-      })) || [];
+      // Step 2: Find the related topics widget or use any available widget
+      const relatedTopicsWidget = exploreResponse.widgets.find(widget => 
+        widget.id === 'RELATED_TOPICS' || 
+        (widget.request as any)?.restriction?.complexKeywordsRestriction?.keyword?.[0]?.value === keyword
+      ) || exploreResponse.widgets[0]; // Fallback to first widget if no specific one found
 
-      return {
-        data: {
-          default: {
-            rankedList: [{
-              rankedKeyword: relatedTopics
-            }]
-          }
+      if (!relatedTopicsWidget) {
+        return { error: new ParseError('No widgets found in explore response') };
+      }
+
+      // Step 3: Call the related topics API with or without token
+      const options = {
+        ...GOOGLE_TRENDS_MAPPER[GoogleTrendsEndpoints.relatedTopics],
+        qs: {
+          hl,
+          tz: '240',
+          req: JSON.stringify({
+            restriction: {
+              geo: { country: geo },
+              time: time,
+              originalTimeRangeForExploreUrl: time,
+              complexKeywordsRestriction: {
+                keyword: [{
+                  type: 'BROAD',
+                  value: keyword
+                }]
+              }
+            },
+            keywordType: 'ENTITY',
+            metric: ['TOP', 'RISING'],
+            trendinessSettings: {
+              compareTime: time
+            },
+            requestOptions: {
+              property: property,
+              backend: 'CM',
+              category: category
+            },
+            language: hl.split('-')[0],
+            userCountryCode: geo,
+            userConfig: {
+              userType: 'USER_TYPE_LEGIT_USER'
+            }
+          }),
+          ...(relatedTopicsWidget.token && { token: relatedTopicsWidget.token })
         }
       };
+
+      const response = await request(options.url, options);
+      const text = await response.text();
+
+      // Parse the response
+      try {
+        const data = JSON.parse(text);
+        
+        // Return the data in the expected format
+        return {
+          data: {
+            default: {
+              rankedList: data.default?.rankedList || []
+            }
+          }
+        };
+      } catch (parseError) {
+        return { error: new ParseError('Failed to parse related topics response') };
+      }
+
     } catch (error) {
       if (error instanceof Error) {
         return { error: new NetworkError(error.message) };
