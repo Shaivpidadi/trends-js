@@ -1,5 +1,12 @@
 A TypeScript library for interacting with the Google Trends API. This package provides a simple and type-safe way to access Google Trends data programmatically.
 
+## Showcase
+
+### EliteTimesNews.com — Built with `@shaivpidadi/trends-js`
+**URL:** https://elitetimesnews.com  
+**What it uses:** `dailyTrends()` (US, en) to power the home page “Daily Trending” rail, refreshed on a schedule.
+
+
 ## Installation
 
 ```bash
