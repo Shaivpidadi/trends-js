@@ -1,4 +1,4 @@
-import { GoogleTrendsApi } from './helpers/googleTrendsAPI';
+import { GoogleTrendsApi } from './helpers/googleTrendsAPI.js';
 
 const api = new GoogleTrendsApi();
 

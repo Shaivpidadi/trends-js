@@ -1,4 +1,4 @@
-import { GoogleTrendsError } from '../types';
+import { GoogleTrendsError } from '../types/index.js';
 
 export class RateLimitError extends Error implements GoogleTrendsError {
   code = 'RATE_LIMIT_EXCEEDED';

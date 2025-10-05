@@ -7,21 +7,22 @@ import {
   InterestByRegionOptions,
   InterestByRegionResponse,
   GoogleTrendsResponse,
+  GoogleTrendsError,
   RelatedTopicsResponse,
   RelatedQueriesResponse,
   RelatedData,
-} from '../types/index';
-import { GoogleTrendsEndpoints } from '../types/enums';
-import { request } from './request';
-import { extractJsonFromResponse } from './format';
-import { GOOGLE_TRENDS_MAPPER } from '../constants';
+} from '../types/index.js';
+import { GoogleTrendsEndpoints } from '../types/enums.js';
+import { request } from './request.js';
+import { extractJsonFromResponse } from './format.js';
+import { GOOGLE_TRENDS_MAPPER } from '../constants.js';
 import {
   RateLimitError,
   InvalidRequestError,
   NetworkError,
   ParseError,
   UnknownError,
-} from '../errors/GoogleTrendsError';
+} from '../errors/GoogleTrendsError.js';
 
 export class GoogleTrendsApi {
   /**

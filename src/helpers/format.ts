@@ -1,5 +1,5 @@
-import { DailyTrendingTopics, TrendingStory, TrendingTopic } from '../types';
-import { ParseError } from '../errors/GoogleTrendsError';
+import { DailyTrendingTopics, TrendingStory, TrendingTopic } from '../types/index.js';
+import { ParseError } from '../errors/GoogleTrendsError.js';
 
 // For future refrence and update: from google trends page rpc call response,
 // 0	"twitter down"	The main trending search term.
