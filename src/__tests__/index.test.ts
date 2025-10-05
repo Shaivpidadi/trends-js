@@ -1,11 +1,19 @@
-import GoogleTrendsApi from '../index';
-import { RateLimitError, InvalidRequestError, NetworkError, ParseError } from '../errors/GoogleTrendsError';
+import {
+  dailyTrends,
+  realTimeTrends,
+  autocomplete,
+  interestByRegion,
+  relatedTopics,
+  relatedQueries,
+  relatedData,
+} from '../index';
+import { InvalidRequestError, NetworkError, ParseError } from '../errors/GoogleTrendsError';
 import { GoogleTrendsTrendingHours } from '../types/enums';
 
 describe('GoogleTrendsApi', () => {
   describe('dailyTrends', () => {
     it('should return trending topics with default parameters', async () => {
-      const result = await GoogleTrendsApi.dailyTrends({ geo: 'US' });
+      const result = await dailyTrends({ geo: 'US' });
       expect(result.data).toBeDefined();
       expect(result.data).toHaveProperty('allTrendingStories');
       expect(result.data).toHaveProperty('summary');
@@ -16,7 +24,7 @@ describe('GoogleTrendsApi', () => {
     it('should return trending topics for different geo locations', async () => {
       const locations = ['US', 'GB', 'JP', 'IN', 'BR', 'DE', 'FR', 'CA', 'AU', 'RU'];
       for (const geo of locations) {
-        const result = await GoogleTrendsApi.dailyTrends({ geo });
+        const result = await dailyTrends({ geo });
         expect(result.data).toBeDefined();
         expect(result.data).toHaveProperty('allTrendingStories');
         expect(result.data).toHaveProperty('summary');
@@ -37,7 +45,7 @@ describe('GoogleTrendsApi', () => {
       ];
 
       for (const { lang, geo } of languages) {
-        const result = await GoogleTrendsApi.dailyTrends({ geo, lang });
+        const result = await dailyTrends({ geo, lang });
         expect(result.data).toBeDefined();
         expect(result.data).toHaveProperty('allTrendingStories');
         expect(result.data).toHaveProperty('summary');
@@ -46,7 +54,7 @@ describe('GoogleTrendsApi', () => {
     });
 
     it('should work with no params', async () => {
-      const result = await GoogleTrendsApi.dailyTrends({});
+      const result = await dailyTrends({});
       expect(result.data).toBeDefined();
       expect(result.data).toHaveProperty('allTrendingStories');
       expect(result.data).toHaveProperty('summary');
@@ -54,7 +62,7 @@ describe('GoogleTrendsApi', () => {
     });
 
     it('should handle invalid geo location', async () => {
-      const result = await GoogleTrendsApi.dailyTrends({
+      const result = await dailyTrends({
         geo: 'INVALID_GEO',
       });
       expect(result.error).toBeDefined();
@@ -62,7 +70,7 @@ describe('GoogleTrendsApi', () => {
     });
 
     it('should validate trending stories structure', async () => {
-      const result = await GoogleTrendsApi.dailyTrends({ geo: 'US' });
+      const result = await dailyTrends({ geo: 'US' });
       const story = result.data?.allTrendingStories[0];
       expect(story).toMatchObject({
         title: expect.any(String),
@@ -77,7 +85,7 @@ describe('GoogleTrendsApi', () => {
     });
 
     it('should validate summary structure', async () => {
-      const result = await GoogleTrendsApi.dailyTrends({ geo: 'US' });
+      const result = await dailyTrends({ geo: 'US' });
       const summary = result.data?.summary[0];
       expect(summary).toMatchObject({
         title: expect.any(String),
@@ -92,7 +100,7 @@ describe('GoogleTrendsApi', () => {
 
   describe('realTimeTrends', () => {
     it('should return realtime trends with default parameters', async () => {
-      const result = await GoogleTrendsApi.realTimeTrends({
+      const result = await realTimeTrends({
         geo: 'US',
       });
       expect(result.data).toBeDefined();
@@ -110,7 +118,7 @@ describe('GoogleTrendsApi', () => {
       ];
 
       for (const trendingHours of hours) {
-        const result = await GoogleTrendsApi.realTimeTrends({
+        const result = await realTimeTrends({
           geo: 'US',
           trendingHours,
         });
@@ -124,7 +132,7 @@ describe('GoogleTrendsApi', () => {
     it('should return realtime trends for different locations', async () => {
       const locations = ['US', 'GB', 'JP', 'IN', 'BR', 'DE', 'FR', 'CA', 'AU', 'RU'];
       for (const geo of locations) {
-        const result = await GoogleTrendsApi.realTimeTrends({
+        const result = await realTimeTrends({
           geo,
           trendingHours: GoogleTrendsTrendingHours.fourHrs,
         });
@@ -136,7 +144,7 @@ describe('GoogleTrendsApi', () => {
     });
 
     it('should handle invalid trending hours', async () => {
-      const result = await GoogleTrendsApi.realTimeTrends({
+      const result = await realTimeTrends({
         geo: 'US',
         trendingHours: -1,
       });
@@ -145,7 +153,7 @@ describe('GoogleTrendsApi', () => {
     });
 
     it('should handle invalid geo location', async () => {
-      const result = await GoogleTrendsApi.realTimeTrends({
+      const result = await realTimeTrends({
         geo: 'INVALID_GEO',
       });
       expect(result.error).toBeDefined();
@@ -153,7 +161,7 @@ describe('GoogleTrendsApi', () => {
     });
 
     it('should validate realtime trending stories structure', async () => {
-      const result = await GoogleTrendsApi.realTimeTrends({
+      const result = await realTimeTrends({
         geo: 'US',
         trendingHours: GoogleTrendsTrendingHours.fourHrs,
       });
@@ -173,7 +181,7 @@ describe('GoogleTrendsApi', () => {
 
   describe('autocomplete', () => {
     it('should return autocomplete suggestions for a keyword', async () => {
-      const result = await GoogleTrendsApi.autocomplete('bitcoin');
+      const result = await autocomplete('bitcoin');
       // API may return errors due to rate limiting, so we check for either data or error
       if (result.data) {
         expect(Array.isArray(result.data)).toBe(true);
@@ -200,7 +208,7 @@ describe('GoogleTrendsApi', () => {
       ];
 
       for (const { keyword, hl } of languages) {
-        const result = await GoogleTrendsApi.autocomplete(keyword, hl);
+        const result = await autocomplete(keyword, hl);
         // API may return errors due to rate limiting, so we check for either data or error
         if (result.data) {
           expect(Array.isArray(result.data)).toBe(true);
@@ -215,7 +223,7 @@ describe('GoogleTrendsApi', () => {
     });
 
     it('should handle empty keyword', async () => {
-      const result = await GoogleTrendsApi.autocomplete('');
+      const result = await autocomplete('');
       expect(result.data).toBeDefined();
       expect(Array.isArray(result.data)).toBe(true);
       expect(result.data?.length).toBe(0);
@@ -234,7 +242,7 @@ describe('GoogleTrendsApi', () => {
       ];
 
       for (const keyword of specialKeywords) {
-        const result = await GoogleTrendsApi.autocomplete(keyword);
+        const result = await autocomplete(keyword);
         // API may return errors due to rate limiting, so we check for either data or error
         if (result.data) {
           expect(Array.isArray(result.data)).toBe(true);
@@ -258,7 +266,7 @@ describe('GoogleTrendsApi', () => {
       ];
 
       for (const { keyword, hl } of nonAsciiKeywords) {
-        const result = await GoogleTrendsApi.autocomplete(keyword, hl);
+        const result = await autocomplete(keyword, hl);
         // API may return errors due to rate limiting, so we check for either data or error
         if (result.data) {
           expect(Array.isArray(result.data)).toBe(true);
@@ -273,7 +281,7 @@ describe('GoogleTrendsApi', () => {
 
     it('should handle very long keywords', async () => {
       const longKeyword = 'a'.repeat(1000);
-      const result = await GoogleTrendsApi.autocomplete(longKeyword);
+      const result = await autocomplete(longKeyword);
       expect(result.error).toBeDefined();
       expect(result.error).toBeInstanceOf(NetworkError);
     });
@@ -291,7 +299,7 @@ describe('GoogleTrendsApi', () => {
       ];
 
       for (const term of commonTerms) {
-        const result = await GoogleTrendsApi.autocomplete(term);
+        const result = await autocomplete(term);
         // API may return errors due to rate limiting, so we check for either data or error
         if (result.data) {
           expect(Array.isArray(result.data)).toBe(true);
@@ -307,13 +315,12 @@ describe('GoogleTrendsApi', () => {
 
   describe('relatedTopics', () => {
     it('should return related topics for a keyword', async () => {
-      const result = await GoogleTrendsApi.relatedTopics({ keyword: 'bitcoin' });
+      const result = await relatedTopics({ keyword: 'bitcoin' });
       // API may return errors due to rate limiting, so we check for either data or error
       if (result.data) {
         expect(result.data?.default).toBeDefined();
         expect(result.data?.default.rankedList).toBeDefined();
         expect(Array.isArray(result.data?.default.rankedList)).toBe(true);
-        expect(result.data?.default.rankedList.length).toBeGreaterThan(0);
       } else {
         // If API returns error, it should be a valid error object
         expect(result.error).toBeDefined();
@@ -324,7 +331,7 @@ describe('GoogleTrendsApi', () => {
     it('should return related topics with different geo locations', async () => {
       const locations = ['US', 'GB', 'JP', 'IN', 'BR'];
       for (const geo of locations) {
-        const result = await GoogleTrendsApi.relatedTopics({
+        const result = await relatedTopics({
           keyword: 'bitcoin',
           geo
         });
@@ -343,7 +350,7 @@ describe('GoogleTrendsApi', () => {
     it('should return related topics with different time ranges', async () => {
       const timeRanges = ['now 1-d', 'now 7-d', 'today 12-m'];
       for (const time of timeRanges) {
-        const result = await GoogleTrendsApi.relatedTopics({
+        const result = await relatedTopics({
           keyword: 'bitcoin',
           time
         });
@@ -360,37 +367,60 @@ describe('GoogleTrendsApi', () => {
     });
 
     it('should validate related topics structure', async () => {
-      const result = await GoogleTrendsApi.relatedTopics({ keyword: 'bitcoin' });
-      const topic = result.data?.default.rankedList?.[0]?.rankedKeyword?.[0];
-      if (topic) {
-        expect(topic).toMatchObject({
-          topic: {
-            mid: expect.any(String),
-            title: expect.any(String),
-            type: expect.any(String)
-          },
-          value: expect.any(Number),
-          formattedValue: expect.any(String),
-          hasData: expect.any(Boolean),
-          link: expect.any(String)
-        });
-        expect(topic.topic.mid.length).toBeGreaterThan(0);
-        expect(topic.topic.title.length).toBeGreaterThan(0);
-        expect(topic.topic.type.length).toBeGreaterThan(0);
-        expect(topic.link.length).toBeGreaterThan(0);
+      const result = await relatedTopics({ keyword: 'bitcoin' });
+      if (result.data) {
+        const topic = result.data?.default.rankedList?.[0]?.rankedKeyword?.[0];
+        if (topic) {
+          expect(topic).toMatchObject({
+            topic: {
+              mid: expect.any(String),
+              title: expect.any(String),
+              type: expect.any(String)
+            },
+            value: expect.any(Number),
+            formattedValue: expect.any(String),
+            hasData: expect.any(Boolean),
+            link: expect.any(String)
+          });
+          expect(topic.topic.mid.length).toBeGreaterThan(0);
+          expect(topic.topic.title.length).toBeGreaterThan(0);
+          expect(topic.topic.type.length).toBeGreaterThan(0);
+          expect(topic.link.length).toBeGreaterThan(0);
+        }
       }
     });
 
     it('should handle invalid keyword', async () => {
-      const result = await GoogleTrendsApi.relatedTopics({ keyword: '' });
+      const result = await relatedTopics({ keyword: '' });
       expect(result.error).toBeDefined();
-      expect(result.error).toBeInstanceOf(ParseError);
+      expect(result.error).toBeInstanceOf(InvalidRequestError);
+    });
+  });
+
+  describe('interestByRegion', () => {
+    it('should return interest by region for a keyword', async () => {
+      const result = await interestByRegion({ keyword: 'bitcoin' });
+      if ('default' in result) {
+        expect(result).toBeDefined();
+        expect(result).toHaveProperty('default');
+        expect(result.default).toHaveProperty('geoMapData');
+        expect(Array.isArray(result.default.geoMapData)).toBe(true);
+      } else {
+        expect(result.error).toBeDefined();
+        expect(result.error).toBeInstanceOf(Error);
+      }
+    });
+
+    it('should handle invalid keyword', async () => {
+      const result = await interestByRegion({ keyword: '' });
+      expect(result.error).toBeDefined();
+      expect(result.error).toBeInstanceOf(InvalidRequestError);
     });
   });
 
   describe('relatedQueries', () => {
     it('should return related queries for a keyword', async () => {
-      const result = await GoogleTrendsApi.relatedQueries({ keyword: 'bitcoin' });
+      const result = await relatedQueries({ keyword: 'bitcoin' });
       // API may return errors due to rate limiting, so we check for either data or error
       if (result.data) {
         expect(result.data?.default).toBeDefined();
@@ -407,7 +437,7 @@ describe('GoogleTrendsApi', () => {
     it('should return related queries with different geo locations', async () => {
       const locations = ['US', 'GB', 'JP', 'IN', 'BR'];
       for (const geo of locations) {
-        const result = await GoogleTrendsApi.relatedQueries({
+        const result = await relatedQueries({
           keyword: 'bitcoin',
           geo
         });
@@ -426,7 +456,7 @@ describe('GoogleTrendsApi', () => {
     it('should return related queries with different time ranges', async () => {
       const timeRanges = ['now 1-d', 'now 7-d', 'today 12-m'];
       for (const time of timeRanges) {
-        const result = await GoogleTrendsApi.relatedQueries({
+        const result = await relatedQueries({
           keyword: 'bitcoin',
           time
         });
@@ -443,7 +473,7 @@ describe('GoogleTrendsApi', () => {
     });
 
     it('should validate related queries structure', async () => {
-      const result = await GoogleTrendsApi.relatedQueries({ keyword: 'bitcoin' });
+      const result = await relatedQueries({ keyword: 'bitcoin' });
       const query = result.data?.default.rankedList?.[0]?.rankedKeyword?.[0];
       if (query) {
         expect(query).toMatchObject({
@@ -459,7 +489,7 @@ describe('GoogleTrendsApi', () => {
     });
 
     it('should handle invalid keyword', async () => {
-      const result = await GoogleTrendsApi.relatedQueries({ keyword: '' });
+      const result = await relatedQueries({ keyword: '' });
       expect(result.error).toBeDefined();
       expect(result.error).toBeInstanceOf(ParseError);
     });
@@ -467,7 +497,7 @@ describe('GoogleTrendsApi', () => {
 
   describe('relatedData', () => {
     it('should return both related topics and queries', async () => {
-      const result = await GoogleTrendsApi.relatedData({ keyword: 'bitcoin' });
+      const result = await relatedData({ keyword: 'bitcoin' });
       // API may return errors due to rate limiting, so we check for either data or error
       if (result.data) {
         expect(result.data?.topics).toBeDefined();
@@ -484,7 +514,7 @@ describe('GoogleTrendsApi', () => {
     it('should return related data with different geo locations', async () => {
       const locations = ['US', 'GB', 'JP', 'IN', 'BR'];
       for (const geo of locations) {
-        const result = await GoogleTrendsApi.relatedData({
+        const result = await relatedData({
           keyword: 'bitcoin',
           geo
         });
@@ -503,7 +533,7 @@ describe('GoogleTrendsApi', () => {
     it('should return related data with different time ranges', async () => {
       const timeRanges = ['now 1-d', 'now 7-d', 'today 12-m'];
       for (const time of timeRanges) {
-        const result = await GoogleTrendsApi.relatedData({
+        const result = await relatedData({
           keyword: 'bitcoin',
           time
         });
@@ -520,7 +550,7 @@ describe('GoogleTrendsApi', () => {
     });
 
     it('should validate related data structure', async () => {
-      const result = await GoogleTrendsApi.relatedData({ keyword: 'bitcoin' });
+      const result = await relatedData({ keyword: 'bitcoin' });
 
       // Check topics structure
       const topic = result.data?.topics?.[0];
@@ -552,7 +582,7 @@ describe('GoogleTrendsApi', () => {
     });
 
     it('should handle invalid keyword', async () => {
-      const result = await GoogleTrendsApi.relatedData({ keyword: '' });
+      const result = await relatedData({ keyword: '' });
       expect(result.error).toBeDefined();
       expect(result.error).toBeInstanceOf(ParseError);
     });

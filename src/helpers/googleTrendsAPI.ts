@@ -132,7 +132,7 @@ export class GoogleTrendsApi {
     category = 0,
     property = '',
     hl = 'en-US',
-  }: ExploreOptions): Promise<ExploreResponse> {
+  }: ExploreOptions): Promise<ExploreResponse | { error: GoogleTrendsError }> {
     const options = {
       ...GOOGLE_TRENDS_MAPPER[GoogleTrendsEndpoints.explore],
       qs: {
@@ -159,9 +159,7 @@ export class GoogleTrendsApi {
 
       // Check if response is HTML (error page)
       if (text.includes('<html') || text.includes('<!DOCTYPE')) {
-        console.error('Explore request returned HTML instead of JSON');
-        console.error('Response preview:', text.substring(0, 500));
-        return { widgets: [] };
+        return { error: new ParseError('Explore request returned HTML instead of JSON') };
       }
 
       // Try to parse as JSON
@@ -177,13 +175,16 @@ export class GoogleTrendsApi {
         
         return { widgets: [] };
       } catch (parseError) {
-        console.error('Failed to parse explore response as JSON:', parseError instanceof Error ? parseError.message : 'Unknown parse error');
-        console.error('Response preview:', text.substring(0, 200));
-        return { widgets: [] };
+        if (parseError instanceof Error) {
+          return { error: new ParseError(`Failed to parse explore response as JSON: ${parseError.message}`) };
+        }
+        return { error: new ParseError('Failed to parse explore response as JSON') };
       }
     } catch (error) {
-      console.error('Explore request failed:', error);
-      return { widgets: [] };
+      if (error instanceof Error) {
+        return { error: new NetworkError(`Explore request failed: ${error.message}`) };
+      }
+      return { error: new UnknownError('Explore request failed') };
     }
   }
 
@@ -197,7 +198,7 @@ export class GoogleTrendsApi {
     hl = 'en-US',
     timezone = new Date().getTimezoneOffset(),
     category = 0
-  }: InterestByRegionOptions): Promise<InterestByRegionResponse> {
+  }: InterestByRegionOptions): Promise<InterestByRegionResponse | { error: GoogleTrendsError }> {
     const formatDate = (date: Date) => {
       return date.toISOString().split('T')[0];
     };
@@ -233,10 +234,14 @@ export class GoogleTrendsApi {
       hl
     });
 
+    if ('error' in exploreResponse) {
+      return { error: exploreResponse.error };
+    }
+
     const widget = exploreResponse.widgets.find(w => w.id === 'GEO_MAP');
 
     if (!widget) {
-      return { default: { geoMapData: [] } };
+      return { error: new ParseError('No GEO_MAP widget found in explore response') };
     }
 
     const options = {
@@ -279,7 +284,10 @@ export class GoogleTrendsApi {
       const data = JSON.parse(text.slice(5));
       return data;
     } catch (error) {
-      return { default: { geoMapData: [] } };
+      if (error instanceof Error) {
+        return { error: new ParseError(`Failed to parse interest by region response: ${error.message}`) };
+      }
+      return { error: new ParseError('Failed to parse interest by region response') };
     }
   }
 
@@ -294,7 +302,7 @@ export class GoogleTrendsApi {
     try {
       // Validate keyword
       if (!keyword || keyword.trim() === '') {
-        return { error: new ParseError() };
+        return { error: new InvalidRequestError('Keyword is required') };
       }
 
       // Step 1: Call explore to get widget data and token
@@ -307,12 +315,12 @@ export class GoogleTrendsApi {
         hl
       });
 
+      if ('error' in exploreResponse) {
+        return { error: exploreResponse.error };
+      }
+
       if (!exploreResponse.widgets || exploreResponse.widgets.length === 0) {
-        console.error('Explore response had no widgets. This might be due to:');
-        console.error('1. Google blocking the request (rate limiting)');
-        console.error('2. Invalid parameters');
-        console.error('3. Network issues');
-        return { error: new ParseError('No widgets found in explore response - Google may be blocking requests') };
+        return { error: new ParseError('No widgets found in explore response. This might be due to Google blocking the request, invalid parameters, or network issues.') };
       }
 
       // Step 2: Find the related topics widget or use any available widget
@@ -322,7 +330,7 @@ export class GoogleTrendsApi {
       ) || exploreResponse.widgets[0]; // Fallback to first widget if no specific one found
 
       if (!relatedTopicsWidget) {
-        return { error: new ParseError('No widgets found in explore response') };
+        return { error: new ParseError('No related topics widget found in explore response') };
       }
 
       // Step 3: Call the related topics API with or without token
@@ -368,7 +376,7 @@ export class GoogleTrendsApi {
 
       // Parse the response
       try {
-        const data = JSON.parse(text);
+        const data = JSON.parse(text.slice(5));
         
         // Return the data in the expected format
         return {
@@ -379,6 +387,9 @@ export class GoogleTrendsApi {
           }
         };
       } catch (parseError) {
+        if (parseError instanceof Error) {
+          return { error: new ParseError(`Failed to parse related topics response: ${parseError.message}`) };
+        }
         return { error: new ParseError('Failed to parse related topics response') };
       }
 

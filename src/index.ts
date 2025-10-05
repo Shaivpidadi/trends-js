@@ -11,6 +11,8 @@ export const relatedTopics = api.relatedTopics.bind(api);
 export const relatedQueries = api.relatedQueries.bind(api);
 export const relatedData = api.relatedData.bind(api);
 
+export { GoogleTrendsApi };
+
 // Default export for CommonJS compatibility
 export default {
   dailyTrends,
