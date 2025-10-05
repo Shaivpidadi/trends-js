@@ -7,21 +7,22 @@ import {
   InterestByRegionOptions,
   InterestByRegionResponse,
   GoogleTrendsResponse,
+  GoogleTrendsError,
   RelatedTopicsResponse,
   RelatedQueriesResponse,
   RelatedData,
-} from '../types/index';
-import { GoogleTrendsEndpoints } from '../types/enums';
-import { request } from './request';
-import { extractJsonFromResponse } from './format';
-import { GOOGLE_TRENDS_MAPPER } from '../constants';
+} from '../types/index.js';
+import { GoogleTrendsEndpoints } from '../types/enums.js';
+import { request } from './request.js';
+import { extractJsonFromResponse } from './format.js';
+import { GOOGLE_TRENDS_MAPPER } from '../constants.js';
 import {
   RateLimitError,
   InvalidRequestError,
   NetworkError,
   ParseError,
   UnknownError,
-} from '../errors/GoogleTrendsError';
+} from '../errors/GoogleTrendsError.js';
 
 export class GoogleTrendsApi {
   /**
@@ -132,7 +133,7 @@ export class GoogleTrendsApi {
     category = 0,
     property = '',
     hl = 'en-US',
-  }: ExploreOptions): Promise<ExploreResponse> {
+  }: ExploreOptions): Promise<ExploreResponse | { error: GoogleTrendsError }> {
     const options = {
       ...GOOGLE_TRENDS_MAPPER[GoogleTrendsEndpoints.explore],
       qs: {
@@ -159,23 +160,32 @@ export class GoogleTrendsApi {
 
       // Check if response is HTML (error page)
       if (text.includes('<html') || text.includes('<!DOCTYPE')) {
-        console.error('Explore request returned HTML instead of JSON');
-        return { widgets: [] };
+        return { error: new ParseError('Explore request returned HTML instead of JSON') };
       }
 
       // Try to parse as JSON
       try {
         // Remove the first 5 characters (JSONP wrapper) and parse
         const data = JSON.parse(text.slice(5));
-        return data;
-      } catch (parseError) {
-        console.error('Failed to parse explore response as JSON:', parseError instanceof Error ? parseError.message : 'Unknown parse error');
-        console.error('Response preview:', text.substring(0, 200));
+        
+        // Extract widgets from the response
+        if (data && Array.isArray(data) && data.length > 0) {
+          const widgets = data[0] || [];
+          return { widgets };
+        }
+        
         return { widgets: [] };
+      } catch (parseError) {
+        if (parseError instanceof Error) {
+          return { error: new ParseError(`Failed to parse explore response as JSON: ${parseError.message}`) };
+        }
+        return { error: new ParseError('Failed to parse explore response as JSON') };
       }
     } catch (error) {
-      console.error('Explore request failed:', error);
-      return { widgets: [] };
+      if (error instanceof Error) {
+        return { error: new NetworkError(`Explore request failed: ${error.message}`) };
+      }
+      return { error: new UnknownError('Explore request failed') };
     }
   }
 
@@ -189,7 +199,7 @@ export class GoogleTrendsApi {
     hl = 'en-US',
     timezone = new Date().getTimezoneOffset(),
     category = 0
-  }: InterestByRegionOptions): Promise<InterestByRegionResponse> {
+  }: InterestByRegionOptions): Promise<InterestByRegionResponse | { error: GoogleTrendsError }> {
     const formatDate = (date: Date) => {
       return date.toISOString().split('T')[0];
     };
@@ -225,10 +235,14 @@ export class GoogleTrendsApi {
       hl
     });
 
+    if ('error' in exploreResponse) {
+      return { error: exploreResponse.error };
+    }
+
     const widget = exploreResponse.widgets.find(w => w.id === 'GEO_MAP');
 
     if (!widget) {
-      return { default: { geoMapData: [] } };
+      return { error: new ParseError('No GEO_MAP widget found in explore response') };
     }
 
     const options = {
@@ -271,7 +285,10 @@ export class GoogleTrendsApi {
       const data = JSON.parse(text.slice(5));
       return data;
     } catch (error) {
-      return { default: { geoMapData: [] } };
+      if (error instanceof Error) {
+        return { error: new ParseError(`Failed to parse interest by region response: ${error.message}`) };
+      }
+      return { error: new ParseError('Failed to parse interest by region response') };
     }
   }
 
@@ -286,36 +303,97 @@ export class GoogleTrendsApi {
     try {
       // Validate keyword
       if (!keyword || keyword.trim() === '') {
-        return { error: new ParseError() };
+        return { error: new InvalidRequestError('Keyword is required') };
       }
 
-      const autocompleteResult = await this.autocomplete(keyword, hl);
+      // Step 1: Call explore to get widget data and token
+      const exploreResponse = await this.explore({
+        keyword,
+        geo,
+        time,
+        category,
+        property,
+        hl
+      });
 
-      if (autocompleteResult.error) {
-        return { error: autocompleteResult.error };
+      if ('error' in exploreResponse) {
+        return { error: exploreResponse.error };
       }
 
-      const relatedTopics = autocompleteResult.data?.slice(0, 10).map((suggestion, index) => ({
-        topic: {
-          mid: `/m/${index}`,
-          title: suggestion,
-          type: 'Topic'
-        },
-        value: 100 - index * 10,
-        formattedValue: (100 - index * 10).toString(),
-        hasData: true,
-        link: `/trends/explore?q=${encodeURIComponent(suggestion)}&date=${time}&geo=${geo}`
-      })) || [];
+      if (!exploreResponse.widgets || exploreResponse.widgets.length === 0) {
+        return { error: new ParseError('No widgets found in explore response. This might be due to Google blocking the request, invalid parameters, or network issues.') };
+      }
 
-      return {
-        data: {
-          default: {
-            rankedList: [{
-              rankedKeyword: relatedTopics
-            }]
-          }
+      // Step 2: Find the related topics widget or use any available widget
+      const relatedTopicsWidget = exploreResponse.widgets.find(widget => 
+        widget.id === 'RELATED_TOPICS' || 
+        (widget.request as any)?.restriction?.complexKeywordsRestriction?.keyword?.[0]?.value === keyword
+      ) || exploreResponse.widgets[0]; // Fallback to first widget if no specific one found
+
+      if (!relatedTopicsWidget) {
+        return { error: new ParseError('No related topics widget found in explore response') };
+      }
+
+      // Step 3: Call the related topics API with or without token
+      const options = {
+        ...GOOGLE_TRENDS_MAPPER[GoogleTrendsEndpoints.relatedTopics],
+        qs: {
+          hl,
+          tz: '240',
+          req: JSON.stringify({
+            restriction: {
+              geo: { country: geo },
+              time: time,
+              originalTimeRangeForExploreUrl: time,
+              complexKeywordsRestriction: {
+                keyword: [{
+                  type: 'BROAD',
+                  value: keyword
+                }]
+              }
+            },
+            keywordType: 'ENTITY',
+            metric: ['TOP', 'RISING'],
+            trendinessSettings: {
+              compareTime: time
+            },
+            requestOptions: {
+              property: property,
+              backend: 'CM',
+              category: category
+            },
+            language: hl.split('-')[0],
+            userCountryCode: geo,
+            userConfig: {
+              userType: 'USER_TYPE_LEGIT_USER'
+            }
+          }),
+          ...(relatedTopicsWidget.token && { token: relatedTopicsWidget.token })
         }
       };
+
+      const response = await request(options.url, options);
+      const text = await response.text();
+
+      // Parse the response
+      try {
+        const data = JSON.parse(text.slice(5));
+        
+        // Return the data in the expected format
+        return {
+          data: {
+            default: {
+              rankedList: data.default?.rankedList || []
+            }
+          }
+        };
+      } catch (parseError) {
+        if (parseError instanceof Error) {
+          return { error: new ParseError(`Failed to parse related topics response: ${parseError.message}`) };
+        }
+        return { error: new ParseError('Failed to parse related topics response') };
+      }
+
     } catch (error) {
       if (error instanceof Error) {
         return { error: new NetworkError(error.message) };

@@ -88,6 +88,17 @@ export type ExploreResponse = {
       }>;
       category: number;
       property: string;
+      restriction?: {
+        geo: { country: string };
+        time: string;
+        originalTimeRangeForExploreUrl: string;
+        complexKeywordsRestriction: {
+          keyword: Array<{
+            type: string;
+            value: string;
+          }>;
+        };
+      };
     };
     token: string;
   }>;
