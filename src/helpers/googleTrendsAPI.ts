@@ -200,6 +200,11 @@ export class GoogleTrendsApi {
     timezone = new Date().getTimezoneOffset(),
     category = 0
   }: InterestByRegionOptions): Promise<InterestByRegionResponse | { error: GoogleTrendsError }> {
+    const keywordValue = Array.isArray(keyword) ? keyword[0] : keyword;
+    if (!keywordValue || keywordValue.trim() === '') {
+      return { error: new InvalidRequestError('Keyword is required') };
+    }
+
     const formatDate = (date: Date) => {
       return date.toISOString().split('T')[0];
     };

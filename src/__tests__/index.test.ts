@@ -41,7 +41,7 @@ describe('GoogleTrendsApi', () => {
         { lang: 'ja', geo: 'JP' },
         { lang: 'pt', geo: 'BR' },
         { lang: 'it', geo: 'IT' },
-        { lang: 'ru', geo: 'RU' }
+        { lang: 'ru', geo: 'RU' },
       ];
 
       for (const { lang, geo } of languages) {
@@ -76,12 +76,20 @@ describe('GoogleTrendsApi', () => {
         title: expect.any(String),
         traffic: expect.any(String),
         articles: expect.any(Array),
-        shareUrl: expect.any(String)
+        shareUrl: expect.any(String),
       });
       expect(story?.title.length).toBeGreaterThan(0);
       expect(story?.traffic.length).toBeGreaterThan(0);
-      expect(story?.articles.length).toBeGreaterThan(0);
+      expect(Array.isArray(story?.articles)).toBe(true);
       expect(story?.shareUrl.length).toBeGreaterThan(0);
+
+      expect(typeof story?.startTime).toBe('number');
+      expect(story?.startTime).toBeGreaterThan(0);
+
+      if (story?.endTime) {
+        expect(typeof story.endTime).toBe('number');
+        expect(story.endTime).toBeGreaterThan(story.startTime);
+      }
     });
 
     it('should validate summary structure', async () => {
@@ -90,11 +98,49 @@ describe('GoogleTrendsApi', () => {
       expect(summary).toMatchObject({
         title: expect.any(String),
         traffic: expect.any(String),
-        articles: expect.any(Array)
+        articles: expect.any(Array),
       });
       expect(summary?.title.length).toBeGreaterThan(0);
       expect(summary?.traffic.length).toBeGreaterThan(0);
-      expect(summary?.articles.length).toBeGreaterThan(0);
+      expect(Array.isArray(summary?.articles)).toBe(true);
+
+      expect(typeof summary?.startTime).toBe('number');
+      expect(summary?.startTime).toBeGreaterThan(0);
+
+      if (summary?.endTime) {
+        expect(typeof summary.endTime).toBe('number');
+        expect(summary.endTime).toBeGreaterThan(summary.startTime);
+      }
+    });
+
+    it('should include valid timestamps for all trending stories', async () => {
+      const result = await dailyTrends({ geo: 'US' });
+      const stories = result.data?.allTrendingStories || [];
+
+      expect(stories.length).toBeGreaterThan(0);
+
+      const storiesWithStartTime = stories.filter((s) => s.startTime);
+      expect(storiesWithStartTime.length).toBe(stories.length);
+
+      const now = Math.floor(Date.now() / 1000);
+      const sevenDaysAgo = now - 7 * 24 * 60 * 60;
+
+      storiesWithStartTime.forEach((story) => {
+        expect(story.startTime).toBeGreaterThan(sevenDaysAgo);
+        expect(story.startTime).toBeLessThanOrEqual(now);
+      });
+
+      const storiesWithEndTime = stories.filter((s) => s.endTime);
+      if (storiesWithEndTime.length > 0) {
+        storiesWithEndTime.forEach((story) => {
+          expect(story.endTime).toBeGreaterThan(story.startTime);
+          expect(story.endTime).toBeLessThanOrEqual(now);
+
+          const duration = story.endTime! - story.startTime;
+          expect(duration).toBeGreaterThan(0);
+          expect(duration).toBeLessThan(7 * 24 * 60 * 60);
+        });
+      }
     });
   });
 
@@ -114,7 +160,7 @@ describe('GoogleTrendsApi', () => {
         GoogleTrendsTrendingHours.fourHrs,
         GoogleTrendsTrendingHours.oneDay,
         GoogleTrendsTrendingHours.twoDays,
-        GoogleTrendsTrendingHours.sevenDays
+        GoogleTrendsTrendingHours.sevenDays,
       ];
 
       for (const trendingHours of hours) {
@@ -170,12 +216,42 @@ describe('GoogleTrendsApi', () => {
         title: expect.any(String),
         traffic: expect.any(String),
         articles: expect.any(Array),
-        shareUrl: expect.any(String)
+        shareUrl: expect.any(String),
       });
       expect(story?.title.length).toBeGreaterThan(0);
       expect(story?.traffic.length).toBeGreaterThan(0);
-      expect(story?.articles.length).toBeGreaterThan(0);
+      expect(Array.isArray(story?.articles)).toBe(true);
       expect(story?.shareUrl.length).toBeGreaterThan(0);
+
+      expect(typeof story?.startTime).toBe('number');
+      expect(story?.startTime).toBeGreaterThan(0);
+
+      if (story?.endTime) {
+        expect(typeof story.endTime).toBe('number');
+        expect(story.endTime).toBeGreaterThan(story.startTime);
+      }
+    });
+
+    it('should include timestamps matching the trending hours window', async () => {
+      const trendingHours = GoogleTrendsTrendingHours.fourHrs;
+      const result = await realTimeTrends({
+        geo: 'US',
+        trendingHours,
+      });
+      const stories = result.data?.allTrendingStories || [];
+
+      expect(stories.length).toBeGreaterThan(0);
+
+      const storiesWithStartTime = stories.filter((s) => s.startTime);
+      expect(storiesWithStartTime.length).toBe(stories.length);
+
+      const now = Math.floor(Date.now() / 1000);
+      const windowStart = now - trendingHours * 60 * 60;
+
+      storiesWithStartTime.forEach((story) => {
+        expect(story.startTime).toBeGreaterThan(windowStart - 3600);
+        expect(story.startTime).toBeLessThanOrEqual(now);
+      });
     });
   });
 
@@ -204,7 +280,7 @@ describe('GoogleTrendsApi', () => {
         { keyword: 'bitcoin', hl: 'ja-JP' },
         { keyword: 'bitcoin', hl: 'pt-BR' },
         { keyword: 'bitcoin', hl: 'it-IT' },
-        { keyword: 'bitcoin', hl: 'ru-RU' }
+        { keyword: 'bitcoin', hl: 'ru-RU' },
       ];
 
       for (const { keyword, hl } of languages) {
@@ -238,7 +314,7 @@ describe('GoogleTrendsApi', () => {
         'react.js vs vue.js',
         'python 3.9',
         'typescript 4.x',
-        'docker-compose.yml'
+        'docker-compose.yml',
       ];
 
       for (const keyword of specialKeywords) {
@@ -262,7 +338,7 @@ describe('GoogleTrendsApi', () => {
         { keyword: '비트코인', hl: 'ko-KR' },
         { keyword: 'บิตคอยน์', hl: 'th-TH' },
         { keyword: 'बिटकॉइन', hl: 'hi-IN' },
-        { keyword: 'बिटकॉइन', hl: 'mr-IN' }
+        { keyword: 'बिटकॉइन', hl: 'mr-IN' },
       ];
 
       for (const { keyword, hl } of nonAsciiKeywords) {
@@ -287,16 +363,7 @@ describe('GoogleTrendsApi', () => {
     });
 
     it('should handle common search terms', async () => {
-      const commonTerms = [
-        'weather',
-        'news',
-        'sports',
-        'music',
-        'movies',
-        'games',
-        'shopping',
-        'travel'
-      ];
+      const commonTerms = ['weather', 'news', 'sports', 'music', 'movies', 'games', 'shopping', 'travel'];
 
       for (const term of commonTerms) {
         const result = await autocomplete(term);
@@ -333,7 +400,7 @@ describe('GoogleTrendsApi', () => {
       for (const geo of locations) {
         const result = await relatedTopics({
           keyword: 'bitcoin',
-          geo
+          geo,
         });
         // API may return errors due to rate limiting, so we check for either data or error
         if (result.data) {
@@ -352,7 +419,7 @@ describe('GoogleTrendsApi', () => {
       for (const time of timeRanges) {
         const result = await relatedTopics({
           keyword: 'bitcoin',
-          time
+          time,
         });
         // API may return errors due to rate limiting, so we check for either data or error
         if (result.data) {
@@ -375,12 +442,12 @@ describe('GoogleTrendsApi', () => {
             topic: {
               mid: expect.any(String),
               title: expect.any(String),
-              type: expect.any(String)
+              type: expect.any(String),
             },
             value: expect.any(Number),
             formattedValue: expect.any(String),
             hasData: expect.any(Boolean),
-            link: expect.any(String)
+            link: expect.any(String),
           });
           expect(topic.topic.mid.length).toBeGreaterThan(0);
           expect(topic.topic.title.length).toBeGreaterThan(0);
@@ -413,8 +480,11 @@ describe('GoogleTrendsApi', () => {
 
     it('should handle invalid keyword', async () => {
       const result = await interestByRegion({ keyword: '' });
-      expect(result.error).toBeDefined();
-      expect(result.error).toBeInstanceOf(InvalidRequestError);
+      expect('error' in result).toBe(true);
+      if ('error' in result) {
+        expect(result.error).toBeDefined();
+        expect(result.error).toBeInstanceOf(InvalidRequestError);
+      }
     });
   });
 
@@ -439,7 +509,7 @@ describe('GoogleTrendsApi', () => {
       for (const geo of locations) {
         const result = await relatedQueries({
           keyword: 'bitcoin',
-          geo
+          geo,
         });
         // API may return errors due to rate limiting, so we check for either data or error
         if (result.data) {
@@ -458,7 +528,7 @@ describe('GoogleTrendsApi', () => {
       for (const time of timeRanges) {
         const result = await relatedQueries({
           keyword: 'bitcoin',
-          time
+          time,
         });
         // API may return errors due to rate limiting, so we check for either data or error
         if (result.data) {
@@ -481,7 +551,7 @@ describe('GoogleTrendsApi', () => {
           value: expect.any(Number),
           formattedValue: expect.any(String),
           hasData: expect.any(Boolean),
-          link: expect.any(String)
+          link: expect.any(String),
         });
         expect(query.query.length).toBeGreaterThan(0);
         expect(query.link.length).toBeGreaterThan(0);
@@ -516,7 +586,7 @@ describe('GoogleTrendsApi', () => {
       for (const geo of locations) {
         const result = await relatedData({
           keyword: 'bitcoin',
-          geo
+          geo,
         });
         // API may return errors due to rate limiting, so we check for either data or error
         if (result.data) {
@@ -535,7 +605,7 @@ describe('GoogleTrendsApi', () => {
       for (const time of timeRanges) {
         const result = await relatedData({
           keyword: 'bitcoin',
-          time
+          time,
         });
         // API may return errors due to rate limiting, so we check for either data or error
         if (result.data) {
@@ -559,12 +629,12 @@ describe('GoogleTrendsApi', () => {
           topic: {
             mid: expect.any(String),
             title: expect.any(String),
-            type: expect.any(String)
+            type: expect.any(String),
           },
           value: expect.any(Number),
           formattedValue: expect.any(String),
           hasData: expect.any(Boolean),
-          link: expect.any(String)
+          link: expect.any(String),
         });
       }
 
@@ -576,7 +646,7 @@ describe('GoogleTrendsApi', () => {
           value: expect.any(Number),
           formattedValue: expect.any(String),
           hasData: expect.any(Boolean),
-          link: expect.any(String)
+          link: expect.any(String),
         });
       }
     });
