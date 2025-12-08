@@ -40,6 +40,8 @@ export interface TrendingStory {
     snippet: string;
   }>;
   shareUrl: string;
+  startTime: number;
+  endTime?: number;
 }
 
 export interface TrendingTopic {
@@ -52,6 +54,8 @@ export interface TrendingTopic {
     time: string;
     snippet: string;
   }>;
+  startTime: number;
+  endTime?: number;
 }
 
 export interface DailyTrendingTopics {

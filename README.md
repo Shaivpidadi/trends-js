@@ -46,8 +46,26 @@ const result = await GoogleTrendsApi.dailyTrends({
 
 // Result structure:
 // {
-//   allTrendingStories: Array<...>,
-//   summary: string[]
+//   allTrendingStories: Array<{
+//     title: string,
+//     traffic: string,
+//     image?: {
+//       newsUrl: string,
+//       source: string,
+//       imageUrl: string
+//     },
+//     articles: Array<{
+//       title: string,
+//       url: string,
+//       source: string,
+//       time: string,
+//       snippet: string
+//     }>,
+//     shareUrl: string,
+//     startTime: number,      // Unix timestamp
+//     endTime?: number        // Unix timestamp (optional)
+//   }>,
+//   summary: Array<...>
 // }
 ```
 
@@ -63,8 +81,26 @@ const result = await GoogleTrendsApi.realTimeTrends({
 
 // Result structure:
 // {
-//   allTrendingStories: Array<...>,
-//   summary: string[]
+//   allTrendingStories: Array<{
+//     title: string,
+//     traffic: string,
+//     image?: {
+//       newsUrl: string,
+//       source: string,
+//       imageUrl: string
+//     },
+//     articles: Array<{
+//       title: string,
+//       url: string,
+//       source: string,
+//       time: string,
+//       snippet: string
+//     }>,
+//     shareUrl: string,
+//     startTime: number,      // Unix timestamp
+//     endTime?: number        // Unix timestamp (optional)
+//   }>,
+//   summary: Array<...>
 // }
 ```
 
