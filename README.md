@@ -181,8 +181,8 @@ Example with multiple keywords and regions:
 
 ```typescript
 const result = await GoogleTrendsApi.interestByRegion({
-  keyword: ['wine', 'peanuts'],
-  geo: ['US-CA', 'US-VA'],
+  keyword: 'wine',
+  geo: 'US',
   startTime: new Date('2024-01-01'),
   endTime: new Date(),
   resolution: 'CITY',
