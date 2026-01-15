@@ -14,7 +14,7 @@ import {
 } from '../types/index.js';
 import { GoogleTrendsEndpoints } from '../types/enums.js';
 import { request } from './request.js';
-import { extractJsonFromResponse } from './format.js';
+import { extractJsonFromResponse, formatDate, formatTrendsDate } from './format.js';
 import { GOOGLE_TRENDS_MAPPER } from '../constants.js';
 import {
   RateLimitError,
@@ -133,6 +133,7 @@ export class GoogleTrendsApi {
     category = 0,
     property = '',
     hl = 'en-US',
+    enableBackoff = false,
   }: ExploreOptions): Promise<ExploreResponse | { error: GoogleTrendsError }> {
     const options = {
       ...GOOGLE_TRENDS_MAPPER[GoogleTrendsEndpoints.explore],
@@ -151,13 +152,11 @@ export class GoogleTrendsApi {
           property,
         }),
       },
-      contentType: 'form' as const
+      // contentType: 'form' as const
     };
-
     try {
-      const response = await request(options.url, options);
+      const response = await request(options.url, options, enableBackoff);
       const text = await response.text();
-
       // Check if response is HTML (error page)
       if (text.includes('<html') || text.includes('<!DOCTYPE')) {
         return { error: new ParseError('Explore request returned HTML instead of JSON') };
@@ -167,13 +166,17 @@ export class GoogleTrendsApi {
       try {
         // Remove the first 5 characters (JSONP wrapper) and parse
         const data = JSON.parse(text.slice(5));
-        
+
         // Extract widgets from the response
         if (data && Array.isArray(data) && data.length > 0) {
           const widgets = data[0] || [];
           return { widgets };
         }
-        
+
+        if (data && typeof data === 'object' && Array.isArray(data.widgets)) {
+          return { widgets: data.widgets };
+        }
+
         return { widgets: [] };
       } catch (parseError) {
         if (parseError instanceof Error) {
@@ -198,102 +201,68 @@ export class GoogleTrendsApi {
     resolution = 'REGION',
     hl = 'en-US',
     timezone = new Date().getTimezoneOffset(),
-    category = 0
-  }: InterestByRegionOptions): Promise<InterestByRegionResponse | { error: GoogleTrendsError }> {
+    category = 0,
+    enableBackoff = false
+  }: InterestByRegionOptions): Promise<GoogleTrendsResponse<InterestByRegionResponse>> {
     const keywordValue = Array.isArray(keyword) ? keyword[0] : keyword;
+    const geoValue = Array.isArray(geo) ? geo[0] : geo;
     if (!keywordValue || keywordValue.trim() === '') {
       return { error: new InvalidRequestError('Keyword is required') };
     }
-
-    const formatDate = (date: Date) => {
-      return date.toISOString().split('T')[0];
-    };
-
-    const formatTrendsDate = (date: Date): string => {
-      const pad = (n: number) => n.toString().padStart(2, '0');
-      const yyyy = date.getFullYear();
-      const mm = pad(date.getMonth() + 1);
-      const dd = pad(date.getDate());
-      const hh = pad(date.getHours());
-      const min = pad(date.getMinutes());
-      const ss = pad(date.getSeconds());
-
-      return `${yyyy}-${mm}-${dd}T${hh}\\:${min}\\:${ss}`;
-    };
-
-    const getDateRangeParam = (date: Date) => {
-      const yesterday = new Date(date);
-      yesterday.setDate(date.getDate() - 1);
-
-      const formattedStart = formatTrendsDate(yesterday);
-      const formattedEnd = formatTrendsDate(date);
-
-      return `${formattedStart} ${formattedEnd}`;
-    };
-
-
-    const exploreResponse = await this.explore({
-      keyword: Array.isArray(keyword) ? keyword[0] : keyword,
-      geo: Array.isArray(geo) ? geo[0] : geo,
-      time: `${getDateRangeParam(startTime)} ${getDateRangeParam(endTime)}`,
-      category,
-      hl
-    });
-
-    if ('error' in exploreResponse) {
-      return { error: exploreResponse.error };
+    if (!geoValue || geoValue.trim() === '') {
+      return { error: new InvalidRequestError('Geo is required') };
     }
-
-    const widget = exploreResponse.widgets.find(w => w.id === 'GEO_MAP');
-
-    if (!widget) {
-      return { error: new ParseError('No GEO_MAP widget found in explore response') };
-    }
-
-    const options = {
-      ...GOOGLE_TRENDS_MAPPER[GoogleTrendsEndpoints.interestByRegion],
-      qs: {
-        hl,
-        tz: timezone.toString(),
-        req: JSON.stringify({
-          geo: {
-            country: Array.isArray(geo) ? geo[0] : geo
-          },
-          comparisonItem: [{
-            time: `${formatDate(startTime)} ${formatDate(endTime)}`,
-            complexKeywordsRestriction: {
-              keyword: [{
-                type: 'BROAD', //'ENTITY',
-                value: Array.isArray(keyword) ? keyword[0] : keyword
-              }]
-            }
-          }],
-          resolution,
-          locale: hl,
-          requestOptions: {
-            property: '',
-            backend: 'CM', //'IZG',
-            category
-          },
-          userConfig: {
-            userType: 'USER_TYPE_LEGIT_USER'
-          }
-        }),
-        token: widget.token
-      }
-    };
 
     try {
-      const response = await request(options.url, options);
+      const exploreResponse = await this.explore({
+        keyword: keywordValue,
+        geo: geoValue,
+        time: `${formatDate(startTime)} ${formatDate(endTime)}`,
+        category,
+        hl,
+        enableBackoff
+      });
+
+      if ('error' in exploreResponse) {
+        return { error: exploreResponse.error };
+      }
+
+      const widget = exploreResponse.widgets.find(w => w.id === 'GEO_MAP');
+
+      if (!widget) {
+        return { error: new ParseError('No GEO_MAP widget found in explore response') };
+      }
+
+      const requestFromWidget = {
+        ...widget.request, resolution
+      };
+
+      const options = {
+        ...GOOGLE_TRENDS_MAPPER[GoogleTrendsEndpoints.interestByRegion],
+        qs: {
+          hl,
+          tz: timezone.toString(),
+          req: JSON.stringify(requestFromWidget),
+          token: widget.token
+        }
+      };
+
+      const response = await request(options.url, options, enableBackoff);
       const text = await response.text();
-      // Remove the first 5 characters (JSONP wrapper) and parse
+
+      if (text.includes('<!DOCTYPE') || text.includes('<html')) {
+        return { error: new ParseError('Interest by region request failed') };
+      }
+      
+      // Handle JSONP wrapper (usually starts with )]}' or similar)
       const data = JSON.parse(text.slice(5));
-      return data;
+
+      return { data: data.default.geoMapData };
     } catch (error) {
       if (error instanceof Error) {
-        return { error: new ParseError(`Failed to parse interest by region response: ${error.message}`) };
+        return { error: new NetworkError(`Interest by region request failed: ${error.message}`) };
       }
-      return { error: new ParseError('Failed to parse interest by region response') };
+      return { error: new UnknownError('Interest by region request failed') };
     }
   }
 
@@ -304,6 +273,7 @@ export class GoogleTrendsApi {
     category = 0,
     property = '',
     hl = 'en-US',
+    enableBackoff = false,
   }: ExploreOptions): Promise<GoogleTrendsResponse<RelatedTopicsResponse>> {
     try {
       // Validate keyword
@@ -318,7 +288,8 @@ export class GoogleTrendsApi {
         time,
         category,
         property,
-        hl
+        hl,
+        enableBackoff
       });
 
       if ('error' in exploreResponse) {
@@ -330,8 +301,8 @@ export class GoogleTrendsApi {
       }
 
       // Step 2: Find the related topics widget or use any available widget
-      const relatedTopicsWidget = exploreResponse.widgets.find(widget => 
-        widget.id === 'RELATED_TOPICS' || 
+      const relatedTopicsWidget = exploreResponse.widgets.find(widget =>
+        widget.id === 'RELATED_TOPICS' ||
         (widget.request as any)?.restriction?.complexKeywordsRestriction?.keyword?.[0]?.value === keyword
       ) || exploreResponse.widgets[0]; // Fallback to first widget if no specific one found
 
@@ -377,13 +348,13 @@ export class GoogleTrendsApi {
         }
       };
 
-      const response = await request(options.url, options);
+      const response = await request(options.url, options, enableBackoff);
       const text = await response.text();
 
       // Parse the response
       try {
         const data = JSON.parse(text.slice(5));
-        
+
         // Return the data in the expected format
         return {
           data: {

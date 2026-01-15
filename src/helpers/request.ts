@@ -3,12 +3,51 @@ import querystring from 'querystring';
 
 let cookieVal: string | undefined;
 
-function rereq(options: https.RequestOptions, body?: string): Promise<string> {
+const MAX_RETRIES = 3;
+const BASE_DELAY_MS = 750;
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function runRequest(
+  options: https.RequestOptions,
+  body: string,
+  attempt: number
+): Promise<string> {
   return new Promise((resolve, reject) => {
     const req = https.request(options, (res) => {
       let chunk = '';
+
       res.on('data', (data) => { chunk += data; });
-      res.on('end', () => resolve(chunk));
+
+      res.on('end', async () => {
+        const hasSetCookie = !!res.headers['set-cookie']?.length;
+        const isRateLimited =
+          res.statusCode === 429 ||
+          chunk.includes('Error 429') ||
+          chunk.includes('Too Many Requests');
+
+        if (isRateLimited) {
+          if (hasSetCookie) {
+            cookieVal = res.headers['set-cookie']![0].split(';')[0];
+            (options.headers as Record<string, string>)['cookie'] = cookieVal;
+          }
+
+          if (attempt < MAX_RETRIES) {
+            const delay = BASE_DELAY_MS * Math.pow(2, attempt) + Math.floor(Math.random() * 250);
+            await sleep(delay);
+            try {
+              const retryResponse = await runRequest(options, body, attempt + 1);
+              resolve(retryResponse);
+              return;
+            } catch (err) {
+              reject(err);
+              return;
+            }
+          }
+        }
+
+        resolve(chunk);
+      });
     });
 
     req.on('error', reject);
@@ -25,7 +64,8 @@ export const request = async (
     body?: string | Record<string, any>;
     headers?: Record<string, string>;
     contentType?: 'json' | 'form';
-  }
+  },
+  enableBackoff: boolean = false
 ): Promise<{ text: () => Promise<string> }> => {
   const parsedUrl = new URL(url);
   const method = options.method || 'POST';
@@ -56,33 +96,9 @@ export const request = async (
       ...(cookieVal ? { cookie: cookieVal } : {})
     }
   };
-
-  const response = await new Promise<string>((resolve, reject) => {
-    const req = https.request(requestOptions, (res) => {
-      let chunk = '';
-
-      res.on('data', (data) => { chunk += data; });
-
-      res.on('end', async () => {
-        if (res.statusCode === 429 && res.headers['set-cookie']) {
-          cookieVal = res.headers['set-cookie'][0].split(';')[0];
-          (requestOptions.headers as Record<string, string>)['cookie'] = cookieVal;
-          try {
-            const retryResponse = await rereq(requestOptions, bodyString);
-            resolve(retryResponse);
-          } catch (err) {
-            reject(err);
-          }
-        } else {
-          resolve(chunk);
-        }
-      });
-    });
-
-    req.on('error', reject);
-    if (bodyString) req.write(bodyString);
-    req.end();
-  });
+  const response = enableBackoff
+    ? await runRequest(requestOptions, bodyString, 0)
+    : await runRequest(requestOptions, bodyString, MAX_RETRIES);
 
   return {
     text: () => Promise.resolve(response)

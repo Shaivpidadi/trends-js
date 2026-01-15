@@ -467,11 +467,11 @@ describe('GoogleTrendsApi', () => {
   describe('interestByRegion', () => {
     it('should return interest by region for a keyword', async () => {
       const result = await interestByRegion({ keyword: 'bitcoin' });
-      if ('default' in result) {
-        expect(result).toBeDefined();
-        expect(result).toHaveProperty('default');
-        expect(result.default).toHaveProperty('geoMapData');
-        expect(Array.isArray(result.default.geoMapData)).toBe(true);
+      if (result.data) {
+        expect(result.data).toBeDefined();
+        expect(result.data).toHaveProperty('default');
+        expect(result.data.default).toHaveProperty('geoMapData');
+        expect(Array.isArray(result.data.default.geoMapData)).toBe(true);
       } else {
         expect(result.error).toBeDefined();
         expect(result.error).toBeInstanceOf(Error);
@@ -480,9 +480,8 @@ describe('GoogleTrendsApi', () => {
 
     it('should handle invalid keyword', async () => {
       const result = await interestByRegion({ keyword: '' });
-      expect('error' in result).toBe(true);
-      if ('error' in result) {
-        expect(result.error).toBeDefined();
+      expect(result.error).toBeDefined();
+      if (result.error) {
         expect(result.error).toBeInstanceOf(InvalidRequestError);
       }
     });

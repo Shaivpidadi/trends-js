@@ -79,6 +79,7 @@ export type ExploreOptions = {
   category?: number;
   property?: string;
   hl?: string;
+  enableBackoff?: boolean;
 };
 
 export type ExploreResponse = {
@@ -153,14 +154,15 @@ export interface RelatedData {
 }
 
 export interface InterestByRegionOptions {
-  keyword: string | string[];
+  keyword: string;
   startTime?: Date;
   endTime?: Date;
-  geo?: string | string[];
+  geo?: string;
   resolution?: 'COUNTRY' | 'REGION' | 'CITY' | 'DMA';
   hl?: string;
   timezone?: number;
   category?: number;
+  enableBackoff?: boolean;
 }
 
 export interface InterestByRegionData {

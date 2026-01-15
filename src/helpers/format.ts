@@ -16,6 +16,22 @@ import { ParseError } from '../errors/GoogleTrendsError.js';
 // 11	[[3606769742, "en", "US"], [3596035008, "en", "US"]]	User demographics or trending sources, with numerical IDs, language ("en" for English), and country ("US" for United States).
 // 12	"twitter down"	The original trending keyword (sometimes a duplicate of index 0).
 
+export const formatTrendsDate = (date: Date): string => {
+  const pad = (n: number) => n.toString().padStart(2, '0');
+  const yyyy = date.getFullYear();
+  const mm = pad(date.getMonth() + 1);
+  const dd = pad(date.getDate());
+  const hh = pad(date.getHours());
+  const min = pad(date.getMinutes());
+  const ss = pad(date.getSeconds());
+
+  return `${yyyy}-${mm}-${dd}T${hh}\\:${min}\\:${ss}`;
+};
+
+export const formatDate = (date: Date): string => {
+  return date.toISOString().split('T')[0];
+};
+
 export const extractJsonFromResponse = (text: string): DailyTrendingTopics | null => {
   const cleanedText = text.replace(/^\)\]\}'/, '').trim();
   try {
