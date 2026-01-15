@@ -147,14 +147,15 @@ Get interest data by region:
 
 ```typescript
 const result = await GoogleTrendsApi.interestByRegion({
-  keyword: 'Stock Market', // Required - string or string[]
+  keyword: 'Stock Market', // Required - string
   startTime: new Date('2024-01-01'), // Optional - defaults to 2004-01-01
   endTime: new Date(), // Optional - defaults to current date
-  geo: 'US', // Optional - string or string[] - defaults to 'US'
+  geo: 'US', // Optional - string - defaults to 'US'
   resolution: 'REGION', // Optional - 'COUNTRY' | 'REGION' | 'CITY' | 'DMA'
   hl: 'en-US', // Optional - defaults to 'en-US'
   timezone: -240, // Optional - defaults to local timezone
   category: 0, // Optional - defaults to 0
+  enableBackoff: true // Optional - defaults to false
 });
 
 // Result structure:
@@ -185,6 +186,7 @@ const result = await GoogleTrendsApi.interestByRegion({
   startTime: new Date('2024-01-01'),
   endTime: new Date(),
   resolution: 'CITY',
+  enableBackoff: true
 });
 ```
 
@@ -324,6 +326,7 @@ interface InterestByRegionOptions {
   hl?: string; // Optional - language code
   timezone?: number; // Optional - timezone offset
   category?: number; // Optional - category number
+  enableBackoff?: boolean // Optional
 }
 ```
 
