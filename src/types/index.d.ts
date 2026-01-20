@@ -122,6 +122,17 @@ export interface RelatedTopic {
   link: string;
 }
 
+export type RelatedTopicsOptions = {
+  keyword: string;
+  geo?: string;
+  startTime?: Date;
+  endTime?: Date;
+  category?: number;
+  property?: string;
+  hl?: string;
+  enableBackoff?: boolean;
+};
+
 export interface RelatedTopicsResponse {
   default: {
     rankedList: Array<{
@@ -137,6 +148,17 @@ export interface RelatedQuery {
   formattedValue: string;
   hasData: boolean;
   link: string;
+}
+
+export interface RelatedQueriesOptions {
+  keyword: string;
+  geo?: string;
+  startTime?: Date;
+  endTime?: Date;
+  category?: number;
+  property?: string;
+  hl?: string;
+  enableBackoff?: boolean;
 }
 
 export interface RelatedQueriesResponse {

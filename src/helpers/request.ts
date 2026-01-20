@@ -21,17 +21,37 @@ async function runRequest(
 
       res.on('end', async () => {
         const hasSetCookie = !!res.headers['set-cookie']?.length;
+        
+        if (hasSetCookie) {
+          // Only keep the name=value part of the cookie, discard attributes like Expires, Path, etc.
+          const newCookie = res.headers['set-cookie']![0].split(';')[0];
+          cookieVal = newCookie;
+          if (options.headers) {
+            (options.headers as Record<string, string>)['cookie'] = cookieVal;
+          }
+        }
+
         const isRateLimited =
           res.statusCode === 429 ||
           chunk.includes('Error 429') ||
           chunk.includes('Too Many Requests');
-
-        if (isRateLimited) {
-          if (hasSetCookie) {
-            cookieVal = res.headers['set-cookie']![0].split(';')[0];
-            (options.headers as Record<string, string>)['cookie'] = cookieVal;
+        
+        const isUnauthorized = res.statusCode === 401;
+          
+        const isMovedPermanentlyOrRedirect = res.statusCode === 302;
+        if (isMovedPermanentlyOrRedirect) {
+          cookieVal = undefined;
+          if (options.headers) {
+            delete (options.headers as Record<string, string>)['cookie'];
           }
+          if (attempt < MAX_RETRIES) {
+            const retryResponse = await runRequest(options, body, attempt + 1);
+            resolve(retryResponse);
+            return;
+          }
+        }
 
+        if (isRateLimited || isUnauthorized) {
           if (attempt < MAX_RETRIES) {
             const delay = BASE_DELAY_MS * Math.pow(2, attempt) + Math.floor(Math.random() * 250);
             await sleep(delay);

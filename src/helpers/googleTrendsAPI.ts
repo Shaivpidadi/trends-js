@@ -9,8 +9,10 @@ import {
   GoogleTrendsResponse,
   GoogleTrendsError,
   RelatedTopicsResponse,
+  RelatedTopicsOptions,
   RelatedQueriesResponse,
   RelatedData,
+  RelatedQueriesOptions
 } from '../types/index.js';
 import { GoogleTrendsEndpoints } from '../types/enums.js';
 import { request } from './request.js';
@@ -228,7 +230,7 @@ export class GoogleTrendsApi {
       }
 
       const widget = exploreResponse.widgets.find(w => w.id === 'GEO_MAP');
-
+      
       if (!widget) {
         return { error: new ParseError('No GEO_MAP widget found in explore response') };
       }
@@ -269,37 +271,37 @@ export class GoogleTrendsApi {
   async relatedTopics({
     keyword,
     geo = 'US',
-    time = 'now 1-d',
+    startTime = new Date('2004-01-01'),
+    endTime = new Date(),
     category = 0,
     property = '',
     hl = 'en-US',
     enableBackoff = false,
-  }: ExploreOptions): Promise<GoogleTrendsResponse<RelatedTopicsResponse>> {
+  }: RelatedTopicsOptions): Promise<GoogleTrendsResponse<RelatedTopicsResponse>> {
     try {
       // Validate keyword
       if (!keyword || keyword.trim() === '') {
         return { error: new InvalidRequestError('Keyword is required') };
       }
+      const keywordValue = Array.isArray(keyword) ? keyword[0] : keyword;
+      const geoValue = Array.isArray(geo) ? geo[0] : geo;
 
       // Step 1: Call explore to get widget data and token
+      const timeValue = `${formatDate(startTime)} ${formatDate(endTime)}`;
       const exploreResponse = await this.explore({
-        keyword,
-        geo,
-        time,
+        keyword: keywordValue,
+        geo: geoValue,
+        time: timeValue,
         category,
-        property,
         hl,
         enableBackoff
       });
-
       if ('error' in exploreResponse) {
         return { error: exploreResponse.error };
       }
-
       if (!exploreResponse.widgets || exploreResponse.widgets.length === 0) {
         return { error: new ParseError('No widgets found in explore response. This might be due to Google blocking the request, invalid parameters, or network issues.') };
       }
-
       // Step 2: Find the related topics widget or use any available widget
       const relatedTopicsWidget = exploreResponse.widgets.find(widget =>
         widget.id === 'RELATED_TOPICS' ||
@@ -310,58 +312,27 @@ export class GoogleTrendsApi {
         return { error: new ParseError('No related topics widget found in explore response') };
       }
 
+      const requestFromWidget = {
+        ...relatedTopicsWidget.request
+      };
       // Step 3: Call the related topics API with or without token
       const options = {
         ...GOOGLE_TRENDS_MAPPER[GoogleTrendsEndpoints.relatedTopics],
         qs: {
           hl,
           tz: '240',
-          req: JSON.stringify({
-            restriction: {
-              geo: { country: geo },
-              time: time,
-              originalTimeRangeForExploreUrl: time,
-              complexKeywordsRestriction: {
-                keyword: [{
-                  type: 'BROAD',
-                  value: keyword
-                }]
-              }
-            },
-            keywordType: 'ENTITY',
-            metric: ['TOP', 'RISING'],
-            trendinessSettings: {
-              compareTime: time
-            },
-            requestOptions: {
-              property: property,
-              backend: 'CM',
-              category: category
-            },
-            language: hl.split('-')[0],
-            userCountryCode: geo,
-            userConfig: {
-              userType: 'USER_TYPE_LEGIT_USER'
-            }
-          }),
+          req: JSON.stringify(requestFromWidget),
           ...(relatedTopicsWidget.token && { token: relatedTopicsWidget.token })
         }
       };
-
       const response = await request(options.url, options, enableBackoff);
       const text = await response.text();
-
       // Parse the response
       try {
         const data = JSON.parse(text.slice(5));
-
         // Return the data in the expected format
         return {
-          data: {
-            default: {
-              rankedList: data.default?.rankedList || []
-            }
-          }
+          data: data.default?.rankedList || []
         };
       } catch (parseError) {
         if (parseError instanceof Error) {
@@ -381,40 +352,72 @@ export class GoogleTrendsApi {
   async relatedQueries({
     keyword,
     geo = 'US',
-    time = 'now 1-d',
+    startTime = new Date('2004-01-01'),
+    endTime = new Date(),
     category = 0,
     property = '',
     hl = 'en-US',
-  }: ExploreOptions): Promise<GoogleTrendsResponse<RelatedQueriesResponse>> {
+    enableBackoff = false,
+  }: RelatedQueriesOptions): Promise<GoogleTrendsResponse<RelatedQueriesResponse>> {
     try {
-      // Validate keyword
-      if (!keyword || keyword.trim() === '') {
-        return { error: new ParseError() };
+        // Validate keyword
+        if (!keyword || keyword.trim() === '') {
+          return { error: new InvalidRequestError('Keyword is required') };
+        }
+        const keywordValue = Array.isArray(keyword) ? keyword[0] : keyword;
+        const geoValue = Array.isArray(geo) ? geo[0] : geo;
+  
+        // Step 1: Call explore to get widget data and token
+        const timeValue = `${formatDate(startTime)} ${formatDate(endTime)}`;
+        const exploreResponse = await this.explore({
+          keyword: keywordValue,
+          geo: geoValue,
+          time: timeValue,
+          category,
+          hl,
+          enableBackoff
+        });
+        if ('error' in exploreResponse) {
+          return { error: exploreResponse.error };
+        }
+        if (!exploreResponse.widgets || exploreResponse.widgets.length === 0) {
+          return { error: new ParseError('No widgets found in explore response. This might be due to Google blocking the request, invalid parameters, or network issues.') };
+        }
+
+      const relatedQueriesWidget = exploreResponse.widgets.find(widget =>
+        widget.id === 'RELATED_QUERIES') || null; // Fallback to first widget if no specific one found
+
+      if (!relatedQueriesWidget) {
+        return { error: new ParseError('No related queries widget found in explore response') };
       }
 
-      const autocompleteResult = await this.autocomplete(keyword, hl);
-
-      if (autocompleteResult.error) {
-        return { error: autocompleteResult.error };
-      }
-
-      const relatedQueries = autocompleteResult.data?.slice(0, 10).map((suggestion, index) => ({
-        query: suggestion,
-        value: 100 - index * 10,
-        formattedValue: (100 - index * 10).toString(),
-        hasData: true,
-        link: `/trends/explore?q=${encodeURIComponent(suggestion)}&date=${time}&geo=${geo}`
-      })) || [];
-
-      return {
-        data: {
-          default: {
-            rankedList: [{
-              rankedKeyword: relatedQueries
-            }]
-          }
+      const requestFromWidget = {
+        ...relatedQueriesWidget.request
+      };
+      const options = {
+        ...GOOGLE_TRENDS_MAPPER[GoogleTrendsEndpoints.relatedQueries],
+        qs: {
+          hl,
+          tz: '240',
+          req: JSON.stringify(requestFromWidget),
+          token: relatedQueriesWidget.token
         }
       };
+      const response = await request(options.url, options, enableBackoff);
+      const text = await response.text();
+      // Parse the response
+      try {
+        const data = JSON.parse(text.slice(5));
+        // Return the data in the expected format
+        return {
+          data: data.default?.rankedList || []
+        };
+      } catch (parseError) {
+        if (parseError instanceof Error) {
+          return { error: new ParseError(`Failed to parse related queries response: ${parseError.message}`) };
+        }
+        return { error: new ParseError('Failed to parse related queries response') };
+      }
     } catch (error) {
       if (error instanceof Error) {
         return { error: new NetworkError(error.message) };
