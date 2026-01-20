@@ -21,7 +21,6 @@ async function runRequest(
 
       res.on('end', async () => {
         const hasSetCookie = !!res.headers['set-cookie']?.length;
-        console.log('res.headers', res.headers);
         
         if (hasSetCookie) {
           // Only keep the name=value part of the cookie, discard attributes like Expires, Path, etc.
