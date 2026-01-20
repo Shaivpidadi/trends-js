@@ -22,7 +22,6 @@ npm install @shaivpidadi/trends-js
 - Get interest by region data
 - Get related topics for any keyword
 - Get related queries for any keyword
-- Get combined related data (topics + queries)
 - TypeScript support
 - Promise-based API
 
@@ -113,8 +112,6 @@ const suggestions = await GoogleTrendsApi.autocomplete(
   'bitcoin', // Keyword to get suggestions for
   'en-US', // Language (default: 'en-US')
 );
-
-// Returns: string[]
 ```
 
 ### Explore
@@ -124,8 +121,8 @@ Get widget data for a keyword:
 ```typescript
 const result = await GoogleTrendsApi.explore({
   keyword: 'bitcoin',
-  geo: 'US', // Default: 'US'
-  time: 'today 12-m', // Default: 'today 12-m'
+  geo: 'US' // Default: 'US',
+  time: 'today 12-m',
   category: 0, // Default: 0
   property: '', // Default: ''
   hl: 'en-US', // Default: 'en-US'
@@ -140,6 +137,7 @@ const result = await GoogleTrendsApi.explore({
 //   }>
 // }
 ```
+> **Note:** For all methods below, it is recommended to set `enableBackoff: true` in the options to automatically handle and bypass Google's rate limiting.
 
 ### Interest by Region
 
@@ -177,31 +175,20 @@ const result = await GoogleTrendsApi.interestByRegion({
 // }
 ```
 
-Example with multiple keywords and regions:
-
-```typescript
-const result = await GoogleTrendsApi.interestByRegion({
-  keyword: 'wine',
-  geo: 'US',
-  startTime: new Date('2024-01-01'),
-  endTime: new Date(),
-  resolution: 'CITY',
-  enableBackoff: true
-});
-```
-
 ### Related Topics
 
 Get related topics for any keyword:
 
 ```typescript
 const result = await GoogleTrendsApi.relatedTopics({
-  keyword: 'artificial intelligence', // Required
-  geo: 'US', // Optional - defaults to 'US'
-  time: 'now 1-d', // Optional - defaults to 'now 1-d'
+  keyword: 'artificial intelligence',
+  startTime: new Date('2024-01-01'),
+  endTime: new Date(),
   category: 0, // Optional - defaults to 0
+  geo: 'US', // Optional - defaults to 'US'
   property: '', // Optional - defaults to ''
   hl: 'en-US', // Optional - defaults to 'en-US'
+  enableBackoff: true // Optional - defaults to false
 });
 
 // Result structure:
@@ -232,12 +219,13 @@ Get related queries for any keyword:
 
 ```typescript
 const result = await GoogleTrendsApi.relatedQueries({
-  keyword: 'machine learning', // Required
-  geo: 'US', // Optional - defaults to 'US'
-  time: 'now 1-d', // Optional - defaults to 'now 1-d'
-  category: 0, // Optional - defaults to 0
-  property: '', // Optional - defaults to ''
-  hl: 'en-US', // Optional - defaults to 'en-US'
+  keyword: 'machine learning',
+  geo: 'US',
+  startTime: new Date('2024-01-01'),
+  endTime: new Date(),
+  category: 0,
+  hl: 'en-US',
+  enableBackoff: true // Optional - defaults to false
 });
 
 // Result structure:
@@ -258,37 +246,14 @@ const result = await GoogleTrendsApi.relatedQueries({
 // }
 ```
 
-### Combined Related Data
-
-Get both related topics and queries in a single call:
-
-```typescript
-const result = await GoogleTrendsApi.relatedData({
-  keyword: 'blockchain', // Required
-  geo: 'US', // Optional - defaults to 'US'
-  time: 'now 1-d', // Optional - defaults to 'now 1-d'
-  category: 0, // Optional - defaults to 0
-  property: '', // Optional - defaults to ''
-  hl: 'en-US', // Optional - defaults to 'en-US'
-});
-
-// Result structure:
-// {
-//   data: {
-//     topics: Array<RelatedTopic>,
-//     queries: Array<RelatedQuery>
-//   }
-// }
-```
-
 ## API Reference
 
 ### DailyTrendsOptions
 
 ```typescript
 interface DailyTrendsOptions {
-  geo?: string; // Default: 'US'
-  lang?: string; // Default: 'en'
+  geo?: string;
+  lang?: string;
 }
 ```
 
@@ -297,7 +262,7 @@ interface DailyTrendsOptions {
 ```typescript
 interface RealTimeTrendsOptions {
   geo: string;
-  trendingHours?: number; // Default: 4
+  trendingHours?: number;
 }
 ```
 
@@ -306,11 +271,11 @@ interface RealTimeTrendsOptions {
 ```typescript
 interface ExploreOptions {
   keyword: string;
-  geo?: string; // Default: 'US'
-  time?: string; // Default: 'today 12-m'
-  category?: number; // Default: 0
-  property?: string; // Default: ''
-  hl?: string; // Default: 'en-US'
+  geo?: string;
+  time?: string;
+  category?: number;
+  property?: string;
+  hl?: string;
 }
 ```
 
@@ -318,64 +283,45 @@ interface ExploreOptions {
 
 ```typescript
 interface InterestByRegionOptions {
-  keyword: string | string[]; // Required - search term(s)
-  startTime?: Date; // Optional - start date
-  endTime?: Date; // Optional - end date
-  geo?: string | string[]; // Optional - geocode(s)
-  resolution?: 'COUNTRY' | 'REGION' | 'CITY' | 'DMA'; // Optional
-  hl?: string; // Optional - language code
-  timezone?: number; // Optional - timezone offset
-  category?: number; // Optional - category number
-  enableBackoff?: boolean // Optional
+  keyword: string;
+  startTime?: Date;
+  endTime?: Date;
+  geo?: string;
+  resolution?: 'COUNTRY' | 'REGION' | 'CITY' | 'DMA';
+  hl?: string;
+  timezone?: number;
+  category?: number;
+  enableBackoff?: boolean;
 }
 ```
 
-### RelatedTopicsResponse
+### RelatedTopicsOptions
 
 ```typescript
-interface RelatedTopicsResponse {
-  default: {
-    rankedList: Array<{
-      rankedKeyword: Array<{
-        topic: {
-          mid: string;
-          title: string;
-          type: string;
-        };
-        value: number;
-        formattedValue: string;
-        hasData: boolean;
-        link: string;
-      }>;
-    }>;
-  };
+interface RelatedTopicsOptions {
+  keyword: string;
+  geo?: string;
+  startTime?: Date;
+  endTime?: Date;
+  category?: number;
+  property?: string;
+  hl?: string;
+  enableBackoff?: boolean;
 }
 ```
 
-### RelatedQueriesResponse
+### RelatedQueriesOptions
 
 ```typescript
-interface RelatedQueriesResponse {
-  default: {
-    rankedList: Array<{
-      rankedKeyword: Array<{
-        query: string;
-        value: number;
-        formattedValue: string;
-        hasData: boolean;
-        link: string;
-      }>;
-    }>;
-  };
-}
-```
-
-### RelatedData
-
-```typescript
-interface RelatedData {
-  topics: Array<RelatedTopic>;
-  queries: Array<RelatedQuery>;
+interface RelatedQueriesOptions {
+  keyword: string;
+  geo?: string;
+  startTime?: Date;
+  endTime?: Date;
+  category?: number;
+  property?: string;
+  hl?: string;
+  enableBackoff?: boolean;
 }
 ```
 
@@ -383,6 +329,16 @@ interface RelatedData {
 
 ### Building
 
+```bash
+npm run build
 ```
 
+### Testing
+
+```bash
+npm test
 ```
+
+## License
+
+MIT
