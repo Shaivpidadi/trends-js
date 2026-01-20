@@ -37,17 +37,17 @@ export const GOOGLE_TRENDS_MAPPER: Record<GoogleTrendsEndpoints, GoogleTrendsMap
     headers: {},
   },
   [GoogleTrendsEndpoints.relatedTopics]: {
-    path: '/trends/api/widgetdata/relatedtopics',
+    path: '/trends/api/widgetdata/relatedsearches',
     method: 'GET',
     host: GOOGLE_TRENDS_BASE_URL,
-    url: `https://${GOOGLE_TRENDS_BASE_URL}/trends/api/widgetdata/relatedtopics`,
+    url: `https://${GOOGLE_TRENDS_BASE_URL}/trends/api/widgetdata/relatedsearches`,
     headers: {},
   },
   [GoogleTrendsEndpoints.relatedQueries]: {
-    path: '/trends/api/widgetdata/relatedqueries',
+    path: '/trends/api/widgetdata/relatedsearches',
     method: 'GET',
     host: GOOGLE_TRENDS_BASE_URL,
-    url: `https://${GOOGLE_TRENDS_BASE_URL}/trends/api/widgetdata/relatedqueries`,
+    url: `https://${GOOGLE_TRENDS_BASE_URL}/trends/api/widgetdata/relatedsearches`,
     headers: {},
   },
 };
